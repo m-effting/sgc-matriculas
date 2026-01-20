@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGC - Gestão Central de Matrículas</title>
+    
+    <!-- Scripts Externos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carrega o Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Estilos e Ícones -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="src/css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden font-inter">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm hidden md:flex">
+        <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
+            <h1 class="font-bold text-slate-800">SGC Matrículas</h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-1">
+            <button onclick="app.navigate('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50">
+                <span class="material-symbols-outlined">dashboard</span> Dashboard
+            </button>
+            <button onclick="app.navigate('new')" id="nav-new" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
+                <span class="material-symbols-outlined">add_circle</span> Novo Atendimento
+            </button>
+            <button onclick="app.navigate('archive')" id="nav-archive" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
+                <span class="material-symbols-outlined">folder_open</span> Arquivo / Busca
+            </button>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <!-- Views -->
+        <div id="content-area" class="flex-1 overflow-y-auto p-8">
+            
+            <!-- DASHBOARD -->
+            <div id="view-dashboard" class="fade-in max-w-7xl mx-auto">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-2xl font-bold">Painel de Atendimentos</h2>
+                    <div class="flex gap-2">
+                        <div class="px-4 py-2 bg-white rounded border flex flex-col items-center">
+                            <span class="text-xs uppercase text-slate-400">Pendentes</span>
+                            <span id="stat-pending" class="font-bold text-blue-600 text-xl">0</span>
+                        </div>
+                        <div class="px-4 py-2 bg-white rounded border flex flex-col items-center">
+                            <span class="text-xs uppercase text-slate-400">Atrasados</span>
+                            <span id="stat-overdue" class="font-bold text-red-600 text-xl">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="dashboard-empty" class="hidden text-center py-12 bg-white rounded-xl border border-dashed">
+                    <p class="text-slate-500">Nenhum atendimento pendente.</p>
+                </div>
+                <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Cards inseridos via JS -->
+                </div>
+            </div>
+
+            <!-- NEW TICKET -->
+            <div id="view-new" class="hidden fade-in max-w-3xl mx-auto">
+                <div class="bg-white rounded-xl shadow-sm border p-6">
+                    <h2 class="text-xl font-bold mb-6">Novo Atendimento</h2>
+                    <form id="form-new-ticket" onsubmit="app.createTicket(event)" class="space-y-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <input name="attendant" placeholder="Nome do Responsável" class="input-field" required>
+                            <select name="channel" class="input-field" required>
+                                <option value="" disabled selected>Canal de Atendimento</option>
+                                <option>Whatsapp Central</option>
+                                <option>Chatbot</option>
+                                <option>Telefone (Ligação)</option>
+                                <option>Pessoalmente</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <input name="requester" placeholder="Nome do Solicitante" class="input-field" required>
+                            <input name="cpf" placeholder="CPF" class="input-field" required oninput="app.maskCPF(this)">
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <input name="phone" placeholder="Telefone de Contato" class="input-field" required>
+                            <div class="flex gap-2 items-center">
+                                <label class="text-sm font-bold text-slate-600">Prazo (dias úteis):</label>
+                                <select name="deadlineDays" class="input-field flex-1" required>
+                                    <option value="3">3 Dias</option>
+                                    <option value="5">5 Dias</option>
+                                    <option value="8">8 Dias</option>
+                                </select>
+                            </div>
+                        </div>
+                        <textarea name="description" placeholder="Descrição da situação..." rows="4" class="input-field" required></textarea>
+                        <div class="flex justify-end gap-3">
+                            <button type="button" onclick="app.navigate('dashboard')" class="btn-secondary">Cancelar</button>
+                            <button type="submit" class="btn-primary">Gerar Protocolo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ARCHIVE -->
+            <div id="view-archive" class="hidden fade-in max-w-7xl mx-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Arquivo</h2>
+                    <input type="text" placeholder="Buscar..." oninput="app.handleSearch(this.value)" class="input-field w-64">
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b text-xs uppercase text-slate-500">
+                            <tr>
+                                <th class="p-4">Protocolo</th>
+                                <th class="p-4">Solicitante</th>
+                                <th class="p-4">Situação</th>
+                                <th class="p-4">Resolvido Por</th>
+                                <th class="p-4 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archive-table-body" class="text-sm text-slate-700">
+                            <!-- Linhas inseridas via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL DETAILS -->
+    <div id="modal-details" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b flex justify-between">
+                <div>
+                    <h3 id="det-protocol" class="text-xl font-bold">---</h3>
+                    <span id="det-status" class="text-xs px-2 py-1 rounded bg-slate-100 font-bold uppercase">---</span>
+                </div>
+                <button onclick="document.getElementById('modal-details').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div><p class="label">Solicitante</p><p id="det-requester" class="font-medium">-</p></div>
+                    <div><p class="label">CPF</p><p id="det-cpf" class="font-medium">-</p></div>
+                    <div><p class="label">Telefone</p><p id="det-phone" class="font-medium">-</p></div>
+                    <div><p class="label">Canal</p><p id="det-channel" class="font-medium">-</p></div>
+                    <div><p class="label">Responsável</p><p id="det-attendant" class="font-medium">-</p></div>
+                    <div><p class="label">Prazo</p><p id="det-deadline" class="font-medium">-</p></div>
+                </div>
+                <div><p class="label">Descrição</p><p id="det-description" class="bg-slate-50 p-3 rounded border text-sm mt-1 whitespace-pre-wrap">-</p></div>
+            </div>
+            <div class="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-2" id="det-actions">
+                <button onclick="app.deleteTicket()" class="text-red-600 hover:bg-red-50 px-4 py-2 rounded text-sm font-bold">Excluir</button>
+                <button onclick="document.getElementById('modal-details').classList.add('hidden')" class="bg-slate-800 text-white px-4 py-2 rounded text-sm">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RESOLVE -->
+    <div id="modal-resolve" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Concluir Atendimento</h3>
+            <input type="hidden" id="res-id">
+            <div class="space-y-4">
+                <input id="res-who" placeholder="Quem resolveu?" class="input-field w-full" required>
+                <textarea id="res-notes" placeholder="Como foi resolvido?" class="input-field w-full" rows="3"></textarea>
+                <div class="flex justify-end gap-2">
+                    <button onclick="document.getElementById('modal-resolve').classList.add('hidden')" class="btn-secondary">Cancelar</button>
+                    <button onclick="app.confirmResolution()" class="btn-primary bg-green-600 hover:bg-green-700">Concluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/js/supabaseClient.js"></script>
+    <script src="src/js/app.js"></script>
+</body>
+</html>
