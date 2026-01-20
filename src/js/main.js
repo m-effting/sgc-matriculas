@@ -135,22 +135,17 @@ const app = {
      * Ação: Abrir Modal de Detalhes
      * Preenche todos os campos com dados do ticket selecionado
      */
-    openDetails(id) {
+        openDetails(id) {
         this.data.viewingId = id;
         const t = this.data.tickets.find(x => x.id === id);
         
-        if(!t) {
-            console.error("Ticket não encontrado na memória local:", id);
-            return;
-        }
+        if(!t) return;
 
-        // Helper para preencher texto com segurança
         const setText = (elementId, value) => {
             const el = document.getElementById(elementId);
             if(el) el.innerText = value || '-';
         };
 
-        // Preencher Dados Básicos
         setText('det-protocol', t.protocol);
         setText('det-requester', t.requester);
         setText('det-cpf', t.cpf);
@@ -159,49 +154,41 @@ const app = {
         setText('det-attendant', t.attendant);
         setText('det-deadline', (t.deadline_days || 0) + ' dias úteis');
 
-        // Formatar Data de Criação
+        // === NOVA LINHA: Mostrar quem criou ===
+        // Vamos adicionar isso na descrição para não precisar mudar o HTML agora
+        let fullDesc = `📧 Criado por: ${t.created_by_email || 'Desconhecido'}\n\n`;
+        fullDesc += t.description || '';
+
         if(t.created_at) {
             const date = new Date(t.created_at);
             setText('det-date', date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR').slice(0,5));
         }
 
-        // Lógica do Status (Badge)
         const badge = document.getElementById('det-status');
         if(badge) {
-            let label = 'Pendente';
-            let cls = 'bg-yellow-100 text-yellow-800 border-yellow-200'; // Default styles using Tailwind classes directly if needed, or map to CSS classes
+            let cls = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            if(t.status === 'atrasado') cls = 'bg-red-100 text-red-800 border-red-200';
+            if(t.status === 'resolvido') cls = 'bg-slate-100 text-slate-600 border-slate-200';
             
-            if(t.status === 'atrasado') {
-                label = 'Atrasado';
-                cls = 'bg-red-100 text-red-800 border-red-200';
-            } else if(t.status === 'resolvido') {
-                label = 'Resolvido';
-                cls = 'bg-slate-100 text-slate-600 border-slate-200';
-            }
-            
-            badge.innerText = label.toUpperCase();
+            badge.innerText = t.status.toUpperCase();
             badge.className = `px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border ${cls}`;
         }
 
-        // Descrição e Resolução
-        let fullDescription = t.description || '';
-        
         if (t.status === 'resolvido' && t.resolution) {
-            // Se estiver resolvido, adiciona o bloco de resolução ao final da descrição
             const resDate = new Date(t.resolution.date).toLocaleString('pt-BR');
-            fullDescription += `\n\n════════════════════════\n` +
-                               `✅ CONCLUÍDO\n` +
-                               `👤 Por: ${t.resolution.by}\n` +
-                               `📅 Em: ${resDate}\n` +
-                               `📝 Nota: ${t.resolution.notes || 'Sem observações'}`;
+            fullDesc += `\n\n════════════════════════\n` +
+                        `✅ CONCLUÍDO\n` +
+                        `👤 Por: ${t.resolution.by}\n` +
+                        `📅 Em: ${resDate}\n` +
+                        `📝 Nota: ${t.resolution.notes || 'Sem observações'}`;
         }
         
-        setText('det-description', fullDescription);
+        setText('det-description', fullDesc);
         
-        // Mostrar Modal
         const modal = document.getElementById('modal-details');
         if(modal) modal.classList.remove('hidden');
     },
+                
 
     /**
      * Ação: Excluir Atendimento
