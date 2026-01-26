@@ -2,6 +2,32 @@ import { db } from './modules/supabase.js';
 import * as Tickets from './modules/tickets.js';
 import * as UI from './modules/ui.js';
 
+// Definições de constantes para uso nos Selects
+const SERIES_OPTIONS = [
+    "GT1", "GT2", "GT3", "GT4", "GT5",
+    "1º ANO", "2º ANO", "3º ANO", "4º ANO", "5º ANO",
+    "6º ANO", "7º ANO", "8º ANO", "9º ANO"
+];
+
+const ZONEAMENTO_OPTIONS = [
+    "Aririú/Alto Aririú",
+    "Aririú da Formiga",
+    "Barra do Aririú/Rio Grande/Pacheco/Centro",
+    "Bela vista",
+    "Brejarú/Jardim Eldorado",
+    "Caminho Novo/Madri",
+    "Enseada do Brito",
+    "Frei Damião",
+    "Furadinho Praia de Fora",
+    "Guarda do Cubatão",
+    "Pagani/Passa Vinte",
+    "Ponte do Imaruim",
+    "São Sebastião",
+    "Rincão/Morretes/ Guarda do Embaú",
+    "Albradão/ Três Barras/Sertão do Campo",
+    "Pinheira/Ponta do Papagaio/Pasagem do Maciambu"
+];
+
 const app = {
     data: {
         tickets: [],
@@ -16,13 +42,11 @@ const app = {
         console.log("Iniciando SGC Matrículas...");
 
         // 1. Verificar Sessão (Auth)
-
         const { data: { session } } = await db.auth.getSession();
         if (!session && window.location.pathname !== '/login.html') {
             window.location.href = '/login.html';
             return;
         }
-        
 
         // 2. Carregar dados iniciais
         await this.fetchTickets();
@@ -100,6 +124,38 @@ const app = {
     },
 
     /**
+     * Adiciona campos de aluno dinamicamente ao formulário
+     */
+    addStudent() {
+        const container = document.getElementById('students-container');
+        
+        // Gera opções dos selects
+        const seriesOpts = SERIES_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('');
+        const zoneOpts = ZONEAMENTO_OPTIONS.map(z => `<option value="${z}">${z}</option>`).join('');
+
+        const studentHtml = `
+            <div class="p-4 border border-slate-200 rounded-lg bg-slate-50 relative student-item animate-fade-in">
+                <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-slate-400 hover:text-red-500" title="Remover aluno">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input name="student_name[]" placeholder="Nome do Aluno" class="input-field bg-white" required>
+                    <select name="student_grade[]" class="input-field bg-white" required>
+                        <option value="" disabled selected>Série</option>
+                        ${seriesOpts}
+                    </select>
+                    <select name="student_zone[]" class="input-field bg-white" required>
+                        <option value="" disabled selected>Zoneamento</option>
+                        ${zoneOpts}
+                    </select>
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', studentHtml);
+    },
+
+    /**
      * Ação: Criar Novo Atendimento
      */
     async createTicket(e) {
@@ -119,6 +175,9 @@ const app = {
 
             alert('Protocolo gerado com sucesso!');
             form.reset();
+            // Limpa os campos de alunos dinâmicos
+            document.getElementById('students-container').innerHTML = '';
+            
             this.navigate('dashboard');
             this.fetchTickets();
 
@@ -135,7 +194,7 @@ const app = {
      * Ação: Abrir Modal de Detalhes
      * Preenche todos os campos com dados do ticket selecionado
      */
-        openDetails(id) {
+    openDetails(id) {
         this.data.viewingId = id;
         const t = this.data.tickets.find(x => x.id === id);
         
@@ -154,8 +213,28 @@ const app = {
         setText('det-attendant', t.attendant);
         setText('det-deadline', (t.deadline_days || 0) + ' dias úteis');
 
-        // === NOVA LINHA: Mostrar quem criou ===
-        // Vamos adicionar isso na descrição para não precisar mudar o HTML agora
+        // === Renderizar Alunos ===
+        const studentsContainer = document.getElementById('det-students');
+        if (studentsContainer) {
+            if (t.students && Array.isArray(t.students) && t.students.length > 0) {
+                const listHtml = t.students.map(s => `
+                    <li class="flex items-start gap-2 text-slate-700">
+                        <span class="material-symbols-outlined text-slate-400 text-sm mt-0.5">person</span>
+                        <div>
+                            <div class="font-medium">${s.name}</div>
+                            <div class="text-xs text-slate-500">${s.grade} • ${s.zone}</div>
+                        </div>
+                    </li>
+                `).join('');
+                studentsContainer.innerHTML = `<ul class="space-y-2 bg-slate-50 p-3 rounded border border-slate-100">${listHtml}</ul>`;
+                studentsContainer.parentElement.classList.remove('hidden'); // Mostra a label "Alunos"
+            } else {
+                studentsContainer.innerHTML = '';
+                studentsContainer.parentElement.classList.add('hidden'); // Esconde a label se não tiver alunos
+            }
+        }
+
+        // === Mostrar quem criou ===
         let fullDesc = `📧 Criado por: ${t.created_by_email || 'Desconhecido'}\n\n`;
         fullDesc += t.description || '';
 
@@ -188,7 +267,6 @@ const app = {
         const modal = document.getElementById('modal-details');
         if(modal) modal.classList.remove('hidden');
     },
-                
 
     /**
      * Ação: Excluir Atendimento
@@ -263,7 +341,6 @@ const app = {
      * Utilitários
      */
     handleSearch(val) {
-        // Redireciona a busca para o UI Module renderizar a tabela filtrada
         UI.renderArchive(this.data.tickets, val);
     },
 
@@ -281,19 +358,14 @@ const app = {
         el.value = v;
     },
 
-    // Ação do botão "Sair" (Logout)
     async logout() {
         await db.auth.signOut();
         window.location.href = '/login.html';
     }
 };
 
-// EXPOR APP GLOBALMENTE
-// Isso permite que o HTML acesse 'app.createTicket()', 'app.navigate()', etc.
 window.app = app;
 
-// INICIALIZAR QUANDO O DOM ESTIVER PRONTO
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });
-            

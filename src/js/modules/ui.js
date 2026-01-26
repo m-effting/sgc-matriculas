@@ -28,6 +28,14 @@ export function renderDashboard(tickets) {
         const statusLabel = isOverdue ? 'Atrasado' : (t.status === 'em_andamento' ? 'Em Andamento' : t.status);
         const timeColor = isOverdue ? 'text-red-600' : (daysLeft <= 1 ? 'text-yellow-600' : 'text-blue-600');
 
+        // Indicador visual se tiver alunos vinculados
+        const studentsCount = t.students && Array.isArray(t.students) ? t.students.length : 0;
+        const studentIcon = studentsCount > 0 
+            ? `<div class="flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                 <span class="material-symbols-outlined text-[14px]">school</span> ${studentsCount} aluno(s)
+               </div>` 
+            : '';
+
         return `
         <div class="bg-white rounded-xl shadow-sm border p-4 flex flex-col gap-3">
             <div class="flex items-start justify-between gap-4">
@@ -47,9 +55,11 @@ export function renderDashboard(tickets) {
                 <div class="text-xs">${t.cpf || ''} • ${t.phone || ''}</div>
             </div>
 
-            <div class="flex items-center justify-between text-sm">
+            ${studentIcon ? `<div class="flex">${studentIcon}</div>` : ''}
+
+            <div class="flex items-center justify-between text-sm mt-auto pt-2 border-t border-slate-50">
                 <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined">call</span>
+                    <span class="material-symbols-outlined text-slate-400">call</span>
                     <span>${t.channel}</span>
                 </div>
                 <div class="text-right">
@@ -58,7 +68,7 @@ export function renderDashboard(tickets) {
                 </div>
             </div>
 
-            <div class="flex justify-end gap-2">
+            <div class="flex justify-end gap-2 mt-2">
                 <button onclick="app.openDetails('${t.id}')" class="px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200">
                     <span class="material-symbols-outlined align-middle">visibility</span>
                 </button>
@@ -70,6 +80,7 @@ export function renderDashboard(tickets) {
         `;
     }).join('');
 }
+
 export function renderArchive(tickets, term = '') {
     const tbody = document.getElementById('archive-table-body');
     let list = tickets.filter(t => t.status === 'resolvido' || t.status === 'cancelado');
@@ -94,7 +105,7 @@ export function renderArchive(tickets, term = '') {
         const resolvedAt = t.resolution?.date ? new Date(t.resolution.date).toLocaleDateString('pt-BR') : '-';
 
         return `
-        <tr class="border-b">
+        <tr class="border-b hover:bg-slate-50 transition-colors">
             <td class="p-4 font-medium">${t.protocol}</td>
             <td class="p-4">${t.requester}</td>
             <td class="p-4 uppercase text-sm">${statusLabel}</td>
@@ -114,7 +125,6 @@ export function renderArchive(tickets, term = '') {
 
 export function updateStats(tickets) {
     const p = tickets.filter(t => t.status === 'pendente' || t.status === 'em_andamento').length;
-    // Lógica simples para atrasados baseado na data, não no status do banco
     const now = new Date();
     const o = tickets.filter(t => {
         if(t.status === 'resolvido' || t.status === 'cancelado') return false;

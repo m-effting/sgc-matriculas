@@ -20,18 +20,33 @@ export async function createTicket(formData) {
     
     // Se não tiver usuário (caso tenha pulado o login), usa 'Anonimo' ou similar
     const userEmail = user ? user.email : 'Sistema Local';
-    const userId = user ? user.id : null; 
-
+    
     // Gera protocolo
     const datePart = now.toISOString().slice(0,10).replace(/-/g,'');
     const randomPart = Math.floor(1000 + Math.random() * 9000);
     const protocol = `SGC-${datePart}-${randomPart}`;
 
+    // --- Lógica para processar Alunos ---
+    // O FormData retorna arrays quando há múltiplos inputs com o mesmo nome (ex: student_name[])
+    
+    const studentNames = formData.getAll('student_name[]');
+    const studentGrades = formData.getAll('student_grade[]');
+    const studentZones = formData.getAll('student_zone[]');
+
+    const students = studentNames.map((name, index) => {
+        // Só adiciona se tiver nome preenchido
+        if (!name.trim()) return null;
+        return {
+            name: name,
+            grade: studentGrades[index] || '',
+            zone: studentZones[index] || ''
+        };
+    }).filter(s => s !== null);
+
     const newTicket = {
         protocol: protocol,
         attendant: formData.get('attendant'),
         created_by_email: userEmail,
-        // created_by: userId, // Descomentar para linkar com a FK de profiles (se o usuário existir lá)
         channel: formData.get('channel'),
         requester: formData.get('requester'),
         cpf: formData.get('cpf'),
@@ -40,9 +55,9 @@ export async function createTicket(formData) {
         deadline_days: days,
         deadline_date: calculateDeadline(days).toISOString(),
         
-        // IMPORTANTE: O SQL exige que o status seja um destes: 'pendente', 'em_andamento', 'resolvido', 'cancelado'
-        status: 'pendente', 
-        
+        students: students,
+
+        status: 'pendente',
         created_at: now.toISOString()
     };
 

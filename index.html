@@ -14,6 +14,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="src/css/style.css">
+    <style>
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden font-inter">
 
@@ -34,6 +38,11 @@
                 <span class="material-symbols-outlined">folder_open</span> Arquivo / Busca
             </button>
         </nav>
+        <div class="p-4 border-t">
+            <button onclick="app.logout()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50">
+                <span class="material-symbols-outlined">logout</span> Sair do Sistema
+            </button>
+        </div>
     </aside>
 
     <!-- Main Content -->
@@ -70,17 +79,22 @@
                     <h2 class="text-xl font-bold mb-6">Novo Atendimento</h2>
                     <form id="form-new-ticket" onsubmit="app.createTicket(event)" class="space-y-6">
                         <div class="grid grid-cols-2 gap-6">
-                            <input name="attendant" placeholder="Nome do Responsável" class="input-field" required>
+                            <!-- Mudança 1: Placeholder Atendente -->
+                            <input name="attendant" placeholder="Nome do Atendente" class="input-field" required>
+                            
+                            <!-- Mudança 2: Novas Opções -->
                             <select name="channel" class="input-field" required>
                                 <option value="" disabled selected>Canal de Atendimento</option>
                                 <option>Whatsapp Central</option>
                                 <option>Chatbot</option>
                                 <option>Telefone (Ligação)</option>
                                 <option>Pessoalmente</option>
+                                <option>Ouvidoria</option>
+                                <option>Email</option>
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-6">
-                            <input name="requester" placeholder="Nome do Solicitante" class="input-field" required>
+                            <input name="requester" placeholder="Nome do Solicitante (Pai/Mãe)" class="input-field" required>
                             <input name="cpf" placeholder="CPF" class="input-field" required oninput="app.maskCPF(this)">
                         </div>
                         <div class="grid grid-cols-2 gap-6">
@@ -94,7 +108,22 @@
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Mudança 3: Área de Alunos Dinâmicos -->
+                        <div class="border-t border-b py-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-sm font-bold text-slate-600 uppercase">Alunos Relacionados (Opcional)</h3>
+                                <button type="button" onclick="app.addStudent()" class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-base">add</span> Adicionar Aluno
+                                </button>
+                            </div>
+                            <div id="students-container" class="space-y-3">
+                                <!-- Campos inseridos via JS (app.addStudent) -->
+                            </div>
+                        </div>
+
                         <textarea name="description" placeholder="Descrição da situação..." rows="4" class="input-field" required></textarea>
+                        
                         <div class="flex justify-end gap-3">
                             <button type="button" onclick="app.navigate('dashboard')" class="btn-secondary">Cancelar</button>
                             <button type="submit" class="btn-primary">Gerar Protocolo</button>
@@ -146,9 +175,17 @@
                     <div><p class="label">CPF</p><p id="det-cpf" class="font-medium">-</p></div>
                     <div><p class="label">Telefone</p><p id="det-phone" class="font-medium">-</p></div>
                     <div><p class="label">Canal</p><p id="det-channel" class="font-medium">-</p></div>
-                    <div><p class="label">Responsável</p><p id="det-attendant" class="font-medium">-</p></div>
+                    <!-- Label alterada para Atendente -->
+                    <div><p class="label">Atendente</p><p id="det-attendant" class="font-medium">-</p></div>
                     <div><p class="label">Prazo</p><p id="det-deadline" class="font-medium">-</p></div>
                 </div>
+
+                <!-- Seção de Alunos no Modal -->
+                <div class="hidden">
+                    <p class="label mb-2">Alunos Relacionados</p>
+                    <div id="det-students"></div>
+                </div>
+
                 <div><p class="label">Descrição</p><p id="det-description" class="bg-slate-50 p-3 rounded border text-sm mt-1 whitespace-pre-wrap">-</p></div>
             </div>
             <div class="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-2" id="det-actions">
