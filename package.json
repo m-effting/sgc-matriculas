@@ -1,0 +1,11 @@
+{
+  "name": "sgc-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "serve -s ."
+  },
+  "dependencies": {
+    "serve": "^14.2.0"
+  }
+}
