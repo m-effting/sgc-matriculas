@@ -41,11 +41,23 @@ const app = {
     async init() {
         console.log("Iniciando SGC Matrículas...");
 
-        // 1. Verificar Sessão (Auth)
-        const { data: { session } } = await db.auth.getSession();
-        if (!session && window.location.pathname !== '/login.html') {
-            window.location.href = '/login.html';
-            return;
+        // 1. Verificar Sessão (Auth) - uso seguro de getSession()
+        try {
+            const { data } = await db.auth.getSession();
+            const session = data ? data.session : null;
+
+            // Se não há sessão, envia para login (a não ser que já esteja na página de login)
+            if (!session && window.location.pathname !== '/login.html') {
+                window.location.href = '/login.html';
+                return;
+            }
+        } catch (e) {
+            console.error('Erro ao verificar sessão:', e);
+            // Em caso de erro técnico, melhor redirecionar para login
+            if (window.location.pathname !== '/login.html') {
+                window.location.href = '/login.html';
+                return;
+            }
         }
 
         // 2. Carregar dados iniciais
@@ -68,9 +80,7 @@ const app = {
      */
     async fetchTickets() {
         try {
-            // Busca dados brutos do módulo Tickets
             this.data.tickets = await Tickets.getAllTickets();
-            // Atualiza a tela atual
             this.refreshUI();
         } catch (error) {
             console.error("Erro fatal ao buscar tickets:", error);
@@ -81,34 +91,25 @@ const app = {
      * Atualiza os elementos da tela baseados nos dados atuais
      */
     refreshUI() {
-        // Atualiza contadores do dashboard
         UI.updateStats(this.data.tickets);
 
-        // Renderiza a view ativa
         if(this.data.currentView === 'dashboard') {
             UI.renderDashboard(this.data.tickets);
         } else if(this.data.currentView === 'archive') {
-            // Se tiver algo digitado na busca, mantém o filtro
             const searchVal = document.getElementById('search-input')?.value || '';
             UI.renderArchive(this.data.tickets, searchVal);
         }
     },
 
-    /**
-     * Navegação entre abas
-     */
     navigate(viewId) {
-        // Esconde todas as views
         ['view-dashboard', 'view-new', 'view-archive'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.classList.add('hidden');
         });
 
-        // Mostra a view alvo
         const target = document.getElementById('view-' + viewId);
         if(target) target.classList.remove('hidden');
-        
-        // Atualiza estilo dos botões da sidebar
+
         document.querySelectorAll('.nav-item').forEach(el => {
             el.classList.remove('bg-blue-50', 'text-blue-600');
             el.classList.add('text-slate-600');
@@ -118,18 +119,13 @@ const app = {
             activeBtn.classList.add('bg-blue-50', 'text-blue-600');
             activeBtn.classList.remove('text-slate-600');
         }
-        
+
         this.data.currentView = viewId;
         this.refreshUI();
     },
 
-    /**
-     * Adiciona campos de aluno dinamicamente ao formulário
-     */
     addStudent() {
         const container = document.getElementById('students-container');
-        
-        // Gera opções dos selects
         const seriesOpts = SERIES_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('');
         const zoneOpts = ZONEAMENTO_OPTIONS.map(z => `<option value="${z}">${z}</option>`).join('');
 
@@ -151,53 +147,42 @@ const app = {
                 </div>
             </div>
         `;
-        
+
         container.insertAdjacentHTML('beforeend', studentHtml);
     },
 
-    /**
-     * Ação: Criar Novo Atendimento
-     */
     async createTicket(e) {
         e.preventDefault();
         const form = e.target;
         const formData = new FormData(form);
         const submitBtn = form.querySelector('button[type="submit"]');
-        
+
         try {
             submitBtn.disabled = true;
             submitBtn.innerText = "Gerando...";
 
-            // Chama o módulo Tickets para inserir no banco
             const { data, error } = await Tickets.createTicket(formData);
-            
-            if(error) throw error;
+            if (error) throw error;
 
             alert('Protocolo gerado com sucesso!');
             form.reset();
-            // Limpa os campos de alunos dinâmicos
             document.getElementById('students-container').innerHTML = '';
-            
+
             this.navigate('dashboard');
             this.fetchTickets();
 
         } catch (error) {
             console.error(error);
-            alert('Erro ao criar atendimento: ' + error.message);
+            alert('Erro ao criar atendimento: ' + (error.message || JSON.stringify(error)));
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerText = "Gerar Protocolo";
         }
     },
 
-    /**
-     * Ação: Abrir Modal de Detalhes
-     * Preenche todos os campos com dados do ticket selecionado
-     */
     openDetails(id) {
         this.data.viewingId = id;
         const t = this.data.tickets.find(x => x.id === id);
-        
         if(!t) return;
 
         const setText = (elementId, value) => {
@@ -213,7 +198,6 @@ const app = {
         setText('det-attendant', t.attendant);
         setText('det-deadline', (t.deadline_days || 0) + ' dias úteis');
 
-        // === Renderizar Alunos ===
         const studentsContainer = document.getElementById('det-students');
         if (studentsContainer) {
             if (t.students && Array.isArray(t.students) && t.students.length > 0) {
@@ -227,14 +211,13 @@ const app = {
                     </li>
                 `).join('');
                 studentsContainer.innerHTML = `<ul class="space-y-2 bg-slate-50 p-3 rounded border border-slate-100">${listHtml}</ul>`;
-                studentsContainer.parentElement.classList.remove('hidden'); // Mostra a label "Alunos"
+                studentsContainer.parentElement.classList.remove('hidden');
             } else {
                 studentsContainer.innerHTML = '';
-                studentsContainer.parentElement.classList.add('hidden'); // Esconde a label se não tiver alunos
+                studentsContainer.parentElement.classList.add('hidden');
             }
         }
 
-        // === Mostrar quem criou ===
         let fullDesc = `📧 Criado por: ${t.created_by_email || 'Desconhecido'}\n\n`;
         fullDesc += t.description || '';
 
@@ -248,7 +231,7 @@ const app = {
             let cls = 'bg-yellow-100 text-yellow-800 border-yellow-200';
             if(t.status === 'atrasado') cls = 'bg-red-100 text-red-800 border-red-200';
             if(t.status === 'resolvido') cls = 'bg-slate-100 text-slate-600 border-slate-200';
-            
+
             badge.innerText = t.status.toUpperCase();
             badge.className = `px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border ${cls}`;
         }
@@ -261,47 +244,36 @@ const app = {
                         `📅 Em: ${resDate}\n` +
                         `📝 Nota: ${t.resolution.notes || 'Sem observações'}`;
         }
-        
+
         setText('det-description', fullDesc);
-        
+
         const modal = document.getElementById('modal-details');
         if(modal) modal.classList.remove('hidden');
     },
 
-    /**
-     * Ação: Excluir Atendimento
-     */
     async deleteTicket() {
         if(!confirm('Tem certeza que deseja EXCLUIR permanentemente este atendimento?')) return;
-        
+
         try {
             const { error } = await db.from('atendimentos').delete().eq('id', this.data.viewingId);
-            
             if(error) throw error;
-            
-            // Sucesso
+
             document.getElementById('modal-details').classList.add('hidden');
-            this.fetchTickets(); // Atualiza a lista
-            
+            this.fetchTickets();
+
         } catch (error) {
-            alert('Erro ao excluir: ' + error.message);
+            alert('Erro ao excluir: ' + (error.message || JSON.stringify(error)));
         }
     },
 
-    /**
-     * Ação: Preparar Modal de Resolução
-     */
     openResolve(id) {
         this.data.viewingId = id;
         document.getElementById('res-id').value = id;
-        document.getElementById('res-who').value = ''; // Limpar campo anterior
-        document.getElementById('res-notes').value = ''; // Limpar campo anterior
+        document.getElementById('res-who').value = '';
+        document.getElementById('res-notes').value = '';
         document.getElementById('modal-resolve').classList.remove('hidden');
     },
 
-    /**
-     * Ação: Confirmar Resolução
-     */
     async confirmResolution() {
         const id = document.getElementById('res-id').value;
         const who = document.getElementById('res-who').value;
@@ -320,26 +292,22 @@ const app = {
             };
 
             const { error } = await db.from('atendimentos')
-                .update({ 
-                    status: 'resolvido', 
-                    resolution: resolutionData 
+                .update({
+                    status: 'resolvido',
+                    resolution: resolutionData
                 })
                 .eq('id', id);
 
             if(error) throw error;
 
-            // Sucesso
             document.getElementById('modal-resolve').classList.add('hidden');
             this.fetchTickets();
 
         } catch (error) {
-            alert('Erro ao resolver: ' + error.message);
+            alert('Erro ao resolver: ' + (error.message || JSON.stringify(error)));
         }
     },
 
-    /**
-     * Utilitários
-     */
     handleSearch(val) {
         UI.renderArchive(this.data.tickets, val);
     },
@@ -348,7 +316,7 @@ const app = {
         navigator.clipboard.writeText(text);
         alert('Protocolo copiado: ' + text);
     },
-    
+
     maskCPF(el) {
         let v = el.value.replace(/\D/g,"");
         if(v.length > 11) v = v.slice(0,11);
