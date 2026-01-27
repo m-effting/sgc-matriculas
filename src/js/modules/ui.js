@@ -136,3 +136,38 @@ export function updateStats(tickets) {
     if(elP) elP.innerText = p;
     if(elO) elO.innerText = o;
 }
+
+export function renderAvisos(avisos, currentUserId, isAdmin = false) {
+    const container = document.getElementById('avisos-list');
+    if (!container) return;
+
+    if (!avisos || avisos.length === 0) {
+        container.innerHTML = '<div class="p-6 bg-white rounded border text-slate-500">Nenhum aviso encontrado.</div>';
+        return;
+    }
+
+    container.innerHTML = avisos.map(a => {
+        const pinnedLabel = a.pinned ? '<span class="text-xs font-bold text-white bg-blue-600 px-2 py-0.5 rounded">FIXO</span>' : '';
+        const canEdit = (a.created_by === currentUserId) || isAdmin;
+
+        return `
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+          <div class="flex justify-between items-start gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold">${a.title}</h3>
+                ${pinnedLabel}
+              </div>
+              <div class="text-xs text-slate-500">${a.created_by_email || '—'} • ${new Date(a.created_at).toLocaleString('pt-BR')}</div>
+            </div>
+            <div class="flex gap-2">
+              ${canEdit ? `<button onclick="app.openEditAviso('${a.id}')" class="px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200">Editar</button>` : ''}
+              ${isAdmin ? `<button onclick="app.deleteAviso('${a.id}')" class="px-3 py-1 text-sm rounded text-red-600 hover:bg-red-50">Excluir</button>` : ''}
+            </div>
+          </div>
+          <div class="mt-3 text-sm text-slate-700 whitespace-pre-wrap">${a.content || ''}</div>
+          ${a.start_date || a.end_date ? `<div class="mt-2 text-xs text-slate-400">Período: ${a.start_date ? new Date(a.start_date).toLocaleDateString('pt-BR') : '-'} — ${a.end_date ? new Date(a.end_date).toLocaleDateString('pt-BR') : '-'}</div>` : ''}
+        </div>
+        `;
+    }).join('');
+}

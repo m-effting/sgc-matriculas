@@ -1,6 +1,7 @@
 import { db } from './modules/supabase.js';
 import * as Tickets from './modules/tickets.js';
 import * as UI from './modules/ui.js';
+import * as Avisos from './modules/avisos.js';
 
 // Definições de constantes para uso nos Selects
 const SERIES_OPTIONS = [
@@ -31,74 +32,107 @@ const ZONEAMENTO_OPTIONS = [
 const app = {
     data: {
         tickets: [],
-        currentView: 'dashboard', // dashboard, new, archive
-        viewingId: null // ID do ticket sendo visualizado no modal
+        avisos: [],
+        currentView: 'dashboard', // dashboard, new, archive, avisos
+        viewingId: null,          // ID do ticket sendo visualizado
+        viewingAvisoId: null      // ID do aviso sendo visualizado/editado
     },
+
+    // guarda info do usuário atual (populado no init)
+    _currentUserId: null,
+    _isAdmin: false,
 
     /**
      * Inicialização do App
      */
-async init() {
-    console.log("Iniciando SGC Matrículas...");
+    async init() {
+        console.log("Iniciando SGC Matrículas...");
 
-    const path = window.location.pathname || '/';
-    const hash = window.location.hash || '';
-    const isLoginPath = (
-        path.includes('login') ||              // /login ou /login.html
-        hash.includes('login') ||              // /#/login
-        !!document.getElementById('login-form') // página com form de login presente
-    );
+        const path = window.location.pathname || '/';
+        const hash = window.location.hash || '';
+        const isLoginPath = (
+            path.includes('login') ||
+            hash.includes('login') ||
+            !!document.getElementById('login-form')
+        );
 
-    // 1. Verificar Sessão 
-    try {
-        const { data } = await db.auth.getSession();
-        const session = data ? data.session : null;
+        // 1. Verificar Sessão
+        try {
+            // Get session and user
+            const { data: sessionData } = await db.auth.getSession();
+            const session = sessionData ? sessionData.session : null;
 
-        // Se NÃO está logado e NÃO estamos na tela de login -> manda pra login
-        if (!session && !isLoginPath) {
-            // Redireciona para /login 
-            window.location.href = '/login';
+            const { data: userData } = await db.auth.getUser();
+            const user = userData?.user ?? null;
+            this._currentUserId = user?.id ?? null;
+            // tenta detectar role (se setado em app_metadata ou user_metadata)
+            this._isAdmin = (user?.app_metadata?.role === 'admin') || (user?.user_metadata?.role === 'admin') || false;
+
+            if (!session && !isLoginPath) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            if (session && isLoginPath) {
+                window.location.href = '/index.html';
+                return;
+            }
+
+        } catch (e) {
+            console.error('Erro ao verificar sessão:', e);
+            if (!isLoginPath) {
+                window.location.href = '/login.html';
+                return;
+            }
+        }
+
+        if (isLoginPath) {
+            // registra handler de login (já está no login.html)
             return;
         }
 
-        // Se ESTÁ logado e estamos na tela de login -> manda pra home
-        if (session && isLoginPath) {
-            window.location.href = '/';
-            return;
+        // registra listener do form de avisos (se existir)
+        const avisosForm = document.getElementById('form-aviso');
+        if (avisosForm) {
+            avisosForm.addEventListener('submit', (e) => this.createAviso(e));
         }
 
-    } catch (e) {
-        console.error('Erro ao verificar sessão:', e);
-        if (!isLoginPath) {
-            window.location.href = '/login';
-            return;
-        }
-    }
+        // 2. Carregar dados iniciais
+        await Promise.all([this.fetchTickets(), this.fetchAvisos()]);
 
-    // Se estivermos na tela de login, não inicializamos o app
-    if (isLoginPath) {
-        console.log('Página de login detectada — inicialização do app pausada.');
-        return;
-    }
+        // 3. Configurar Realtime
+        db.channel('mudancas-tickets')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'atendimentos' }, () => this.fetchTickets())
+            .subscribe();
 
-    // 2. Carregar dados iniciais
-    await this.fetchTickets();
+        db.channel('mudancas-avisos')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'avisos' }, () => this.fetchAvisos())
+            .subscribe();
 
-    // 3. Configurar Realtime (Ouvir mudanças no banco)
-    db.channel('mudancas-tickets')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'atendimentos' }, (payload) => {
-            console.log('Mudança detectada no banco:', payload);
-            this.fetchTickets(); // Recarrega a lista
-        })
-        .subscribe();
-
-    // 4. Iniciar na tela padrão
-    this.navigate('dashboard');
-},
-
+        // 4. Iniciar na tela padrão
+        this.navigate('dashboard');
+    },
 
     /**
-     * Busca dados e atualiza a interface
+     * Atualiza a UI (central)
+     */
+    refreshUI() {
+        // atualiza contadores
+        UI.updateStats(this.data.tickets);
+
+        // render por view
+        if (this.data.currentView === 'dashboard') {
+            UI.renderDashboard(this.data.tickets);
+        } else if (this.data.currentView === 'archive') {
+            const searchVal = document.getElementById('search-input')?.value || '';
+            UI.renderArchive(this.data.tickets, searchVal);
+        } else if (this.data.currentView === 'avisos') {
+            UI.renderAvisos(this.data.avisos, this._currentUserId, this._isAdmin);
+        }
+    },
+
+    /**
+     * Tickets
      */
     async fetchTickets() {
         try {
@@ -109,41 +143,31 @@ async init() {
         }
     },
 
-    /**
-     * Atualiza os elementos da tela baseados nos dados atuais
-     */
-    refreshUI() {
-        UI.updateStats(this.data.tickets);
+    async createTicket(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
 
-        if(this.data.currentView === 'dashboard') {
-            UI.renderDashboard(this.data.tickets);
-        } else if(this.data.currentView === 'archive') {
-            const searchVal = document.getElementById('search-input')?.value || '';
-            UI.renderArchive(this.data.tickets, searchVal);
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Gerando...";
+            const { data, error } = await Tickets.createTicket(formData);
+            if (error) throw error;
+
+            alert('Protocolo gerado com sucesso!');
+            form.reset();
+            document.getElementById('students-container').innerHTML = '';
+            this.navigate('dashboard');
+            this.fetchTickets();
+
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao criar atendimento: ' + (error.message || JSON.stringify(error)));
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Gerar Protocolo";
         }
-    },
-
-    navigate(viewId) {
-        ['view-dashboard', 'view-new', 'view-archive'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.classList.add('hidden');
-        });
-
-        const target = document.getElementById('view-' + viewId);
-        if(target) target.classList.remove('hidden');
-
-        document.querySelectorAll('.nav-item').forEach(el => {
-            el.classList.remove('bg-blue-50', 'text-blue-600');
-            el.classList.add('text-slate-600');
-        });
-        const activeBtn = document.getElementById('nav-' + viewId);
-        if(activeBtn) {
-            activeBtn.classList.add('bg-blue-50', 'text-blue-600');
-            activeBtn.classList.remove('text-slate-600');
-        }
-
-        this.data.currentView = viewId;
-        this.refreshUI();
     },
 
     addStudent() {
@@ -169,37 +193,7 @@ async init() {
                 </div>
             </div>
         `;
-
         container.insertAdjacentHTML('beforeend', studentHtml);
-    },
-
-    async createTicket(e) {
-        e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
-        const submitBtn = form.querySelector('button[type="submit"]');
-
-        try {
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Gerando...";
-
-            const { data, error } = await Tickets.createTicket(formData);
-            if (error) throw error;
-
-            alert('Protocolo gerado com sucesso!');
-            form.reset();
-            document.getElementById('students-container').innerHTML = '';
-
-            this.navigate('dashboard');
-            this.fetchTickets();
-
-        } catch (error) {
-            console.error(error);
-            alert('Erro ao criar atendimento: ' + (error.message || JSON.stringify(error)));
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Gerar Protocolo";
-        }
     },
 
     openDetails(id) {
@@ -307,21 +301,12 @@ async init() {
         }
 
         try {
-            const resolutionData = {
-                by: who,
-                notes: notes,
-                date: new Date().toISOString()
-            };
-
+            const resolutionData = { by: who, notes: notes, date: new Date().toISOString() };
             const { error } = await db.from('atendimentos')
-                .update({
-                    status: 'resolvido',
-                    resolution: resolutionData
-                })
+                .update({ status: 'resolvido', resolution: resolutionData })
                 .eq('id', id);
 
             if(error) throw error;
-
             document.getElementById('modal-resolve').classList.add('hidden');
             this.fetchTickets();
 
@@ -351,11 +336,138 @@ async init() {
     async logout() {
         await db.auth.signOut();
         window.location.href = '/login.html';
+    },
+
+    navigate(viewId) {
+        ['view-dashboard', 'view-new', 'view-archive', 'view-avisos'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.classList.add('hidden');
+        });
+
+        const target = document.getElementById('view-' + viewId);
+        if(target) target.classList.remove('hidden');
+
+        document.querySelectorAll('.nav-item').forEach(el => {
+            el.classList.remove('bg-blue-50', 'text-blue-600');
+            el.classList.add('text-slate-600');
+        });
+        const activeBtn = document.getElementById('nav-' + viewId);
+        if(activeBtn) {
+            activeBtn.classList.add('bg-blue-50', 'text-blue-600');
+            activeBtn.classList.remove('text-slate-600');
+        }
+
+        this.data.currentView = viewId;
+        this.refreshUI();
+    },
+
+    /**
+     * Avisos
+     */
+    async fetchAvisos() {
+        try {
+            this.data.avisos = await Avisos.getAllAvisos();
+            // atualiza UI com infos de usuário
+            // garante que _currentUserId e _isAdmin estejam atualizados
+            const { data: userData } = await db.auth.getUser();
+            const user = userData?.user ?? null;
+            this._currentUserId = user?.id ?? this._currentUserId;
+            this._isAdmin = (user?.app_metadata?.role === 'admin') || (user?.user_metadata?.role === 'admin') || this._isAdmin;
+
+            UI.renderAvisos(this.data.avisos, this._currentUserId, this._isAdmin);
+        } catch (error) {
+            console.error("Erro ao buscar avisos:", error);
+        }
+    },
+
+    async createAviso(e) {
+        e.preventDefault();
+        const form = document.getElementById('form-aviso');
+        if (!form) return;
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Salvando...";
+            const avisoObj = {
+                title: document.getElementById('aviso-title').value.trim(),
+                content: document.getElementById('aviso-content').value.trim(),
+                start_date: document.getElementById('aviso-start').value || null,
+                end_date: document.getElementById('aviso-end').value || null,
+                pinned: document.getElementById('aviso-pinned').checked || false
+            };
+            await Avisos.createAviso(avisoObj);
+            form.reset();
+            document.getElementById('modal-avisos').classList.add('hidden');
+            this.fetchAvisos();
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao criar aviso: ' + (error.message || JSON.stringify(error)));
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Salvar";
+        }
+    },
+
+    openCreateAviso() {
+        const form = document.getElementById('form-aviso');
+        if (form) {
+            form.reset();
+            document.getElementById('modal-avisos-title').innerText = 'Novo Aviso';
+            document.getElementById('aviso-id').value = '';
+            document.getElementById('modal-avisos').classList.remove('hidden');
+        }
+    },
+
+    openAvisoEdit(id) {
+        const aviso = this.data.avisos.find(a => a.id === id);
+        if(!aviso) return;
+
+        const form = document.getElementById('form-aviso');
+        if (!form) return;
+
+        document.getElementById('aviso-id').value = aviso.id || '';
+        document.getElementById('aviso-title').value = aviso.title || '';
+        document.getElementById('aviso-content').value = aviso.content || '';
+        document.getElementById('aviso-start').value = aviso.start_date ? aviso.start_date.slice(0,10) : '';
+        document.getElementById('aviso-end').value = aviso.end_date ? aviso.end_date.slice(0,10) : '';
+        document.getElementById('aviso-pinned').checked = !!aviso.pinned;
+        document.getElementById('modal-avisos-title').innerText = 'Editar Aviso';
+        document.getElementById('modal-avisos').classList.remove('hidden');
+    },
+
+    async confirmAvisoEdit() {
+        const id = document.getElementById('aviso-id').value;
+        if (!id) { alert('Aviso inválido.'); return; }
+        const updates = {
+            title: document.getElementById('aviso-title').value.trim(),
+            content: document.getElementById('aviso-content').value.trim(),
+            start_date: document.getElementById('aviso-start').value || null,
+            end_date: document.getElementById('aviso-end').value || null,
+            pinned: document.getElementById('aviso-pinned').checked || false
+        };
+
+        try {
+            await Avisos.updateAviso(id, updates);
+            document.getElementById('modal-avisos').classList.add('hidden');
+            this.fetchAvisos();
+        } catch (error) {
+            alert('Erro ao atualizar aviso: ' + (error.message || JSON.stringify(error)));
+        }
+    },
+
+    async deleteAviso(id) {
+        if(!confirm('Deseja realmente excluir este aviso?')) return;
+        try {
+            await Avisos.deleteAviso(id);
+            this.fetchAvisos();
+        } catch (error) {
+            alert('Erro ao excluir aviso: ' + (error.message || JSON.stringify(error)));
+        }
     }
 };
 
 window.app = app;
-
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });
