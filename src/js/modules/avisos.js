@@ -19,10 +19,10 @@ export async function getAllAvisos() {
 
 /**
  * Cria um novo aviso
- * Aceita um objeto com title, content, start_date, end_date e pinned
+ * Aceita um objeto com title, content, e pinned
  */
 export async function createAviso(avisoData) {
-    const { title, content, start_date, end_date, pinned } = avisoData;
+    const { title, content, pinned } = avisoData;
 
     // Pega usuário logado
     const { data: userData } = await db.auth.getUser();
@@ -31,8 +31,6 @@ export async function createAviso(avisoData) {
     const newAviso = {
         title,
         content,
-        start_date: start_date || null,
-        end_date: end_date || null,
         pinned: !!pinned,
         created_by: user?.id || null,
         created_by_email: user?.email || null

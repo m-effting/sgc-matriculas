@@ -392,8 +392,6 @@ const app = {
             const avisoObj = {
                 title: document.getElementById('aviso-title').value.trim(),
                 content: document.getElementById('aviso-content').value.trim(),
-                start_date: document.getElementById('aviso-start').value || null,
-                end_date: document.getElementById('aviso-end').value || null,
                 pinned: document.getElementById('aviso-pinned').checked || false
             };
             await Avisos.createAviso(avisoObj);
@@ -429,8 +427,6 @@ const app = {
         document.getElementById('aviso-id').value = aviso.id || '';
         document.getElementById('aviso-title').value = aviso.title || '';
         document.getElementById('aviso-content').value = aviso.content || '';
-        document.getElementById('aviso-start').value = aviso.start_date ? aviso.start_date.slice(0,10) : '';
-        document.getElementById('aviso-end').value = aviso.end_date ? aviso.end_date.slice(0,10) : '';
         document.getElementById('aviso-pinned').checked = !!aviso.pinned;
         document.getElementById('modal-avisos-title').innerText = 'Editar Aviso';
         document.getElementById('modal-avisos').classList.remove('hidden');
@@ -442,8 +438,6 @@ const app = {
         const updates = {
             title: document.getElementById('aviso-title').value.trim(),
             content: document.getElementById('aviso-content').value.trim(),
-            start_date: document.getElementById('aviso-start').value || null,
-            end_date: document.getElementById('aviso-end').value || null,
             pinned: document.getElementById('aviso-pinned').checked || false
         };
 

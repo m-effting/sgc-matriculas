@@ -166,7 +166,6 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
             </div>
           </div>
           <div class="mt-3 text-sm text-slate-700 whitespace-pre-wrap">${a.content || ''}</div>
-          ${a.start_date || a.end_date ? `<div class="mt-2 text-xs text-slate-400">Período: ${a.start_date ? new Date(a.start_date).toLocaleDateString('pt-BR') : '-'} — ${a.end_date ? new Date(a.end_date).toLocaleDateString('pt-BR') : '-'}</div>` : ''}
         </div>
         `;
     }).join('');
