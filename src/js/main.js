@@ -39,41 +39,55 @@ const app = {
      * Inicialização do App
      */
     async init() {
-        console.log("Iniciando SGC Matrículas...");
+    console.log("Iniciando SGC Matrículas...");
 
-        // 1. Verificar Sessão (Auth) - uso seguro de getSession()
-        try {
-            const { data } = await db.auth.getSession();
-            const session = data ? data.session : null;
+    const path = window.location.pathname;
 
-            // Se não há sessão, envia para login (a não ser que já esteja na página de login)
-            if (!session && window.location.pathname !== '/login.html') {
-                window.location.href = '/login.html';
-                return;
-            }
-        } catch (e) {
-            console.error('Erro ao verificar sessão:', e);
-            // Em caso de erro técnico, melhor redirecionar para login
-            if (window.location.pathname !== '/login.html') {
-                window.location.href = '/login.html';
-                return;
-            }
+    // 1. Verificar Sessão
+    try {
+        const { data } = await db.auth.getSession();
+        const session = data ? data.session : null;
+
+        if (!session && path !== "/login.html") {
+            window.location.href = "/login.html";
+            return;
         }
 
-        // 2. Carregar dados iniciais
-        await this.fetchTickets();
+        if (session && path === "/login.html") {
+            window.location.href = "/";
+            return;
+        }
 
-        // 3. Configurar Realtime (Ouvir mudanças no banco)
-        db.channel('mudancas-tickets')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'atendimentos' }, (payload) => {
-                console.log('Mudança detectada no banco:', payload);
-                this.fetchTickets(); // Recarrega a lista
-            })
-            .subscribe();
+    } catch (e) {
+        console.error("Erro ao verificar sessão:", e);
 
-        // 4. Iniciar na tela padrão
-        this.navigate('dashboard');
-    },
+        // Se der erro técnico e não estiver na página de login → manda para login
+        if (path !== "/login.html") {
+            window.location.href = "/login.html";
+            return;
+        }
+    }
+
+    // 2. Se estiver na página de login, não carrega dashboard
+    if (path === "/login.html") return;
+
+    // 3. Carregar dados iniciais
+    await this.fetchTickets();
+
+    // 4. Configurar Realtime
+    db.channel("mudancas-tickets")
+        .on("postgres_changes", 
+            { event: "*", schema: "public", table: "atendimentos" },
+            (payload) => {
+                console.log("Mudança detectada no banco:", payload);
+                this.fetchTickets();
+            }
+        )
+        .subscribe();
+
+    // 5. Iniciar na tela padrão
+    this.navigate("dashboard");
+},
 
     /**
      * Busca dados e atualiza a interface
