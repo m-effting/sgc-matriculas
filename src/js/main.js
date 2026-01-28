@@ -65,7 +65,7 @@ const app = {
             const { data: userData } = await db.auth.getUser();
             const user = userData?.user ?? null;
             this._currentUserId = user?.id ?? null;
-            // tenta detectar role (se setado em app_metadata ou user_metadata)
+            // tenta detectar role 
             this._isAdmin = (user?.app_metadata?.role === 'admin') || (user?.user_metadata?.role === 'admin') || false;
 
             if (!session && !isLoginPath) {
@@ -87,14 +87,14 @@ const app = {
         }
 
         if (isLoginPath) {
-            // registra handler de login (já está no login.html)
+            // registra handler de login 
             return;
         }
 
         // registra listener do form de avisos (se existir)
         const avisosForm = document.getElementById('form-aviso');
         if (avisosForm) {
-            avisosForm.addEventListener('submit', (e) => this.createAviso(e));
+            avisosForm.addEventListener('submit', (e) => this.saveAviso(e));
         }
 
         // 2. Carregar dados iniciais
@@ -367,8 +367,8 @@ const app = {
     async fetchAvisos() {
         try {
             this.data.avisos = await Avisos.getAllAvisos();
-            // atualiza UI com infos de usuário
-            // garante que _currentUserId e _isAdmin estejam atualizados
+            
+            // Garantir informações de usuário atualizadas
             const { data: userData } = await db.auth.getUser();
             const user = userData?.user ?? null;
             this._currentUserId = user?.id ?? this._currentUserId;
@@ -380,27 +380,38 @@ const app = {
         }
     },
 
-    async createAviso(e) {
+    async saveAviso(e) {
         e.preventDefault();
         const form = document.getElementById('form-aviso');
         if (!form) return;
+
+        const id = document.getElementById('aviso-id').value;
         const submitBtn = form.querySelector('button[type="submit"]');
 
         try {
             submitBtn.disabled = true;
             submitBtn.innerText = "Salvando...";
-            const avisoObj = {
+
+            const avisoData = {
                 title: document.getElementById('aviso-title').value.trim(),
                 content: document.getElementById('aviso-content').value.trim(),
                 pinned: document.getElementById('aviso-pinned').checked || false
             };
-            await Avisos.createAviso(avisoObj);
+
+            if (id) {
+                // Modo Edição
+                await Avisos.updateAviso(id, avisoData);
+            } else {
+                // Modo Criação
+                await Avisos.createAviso(avisoData);
+            }
+
             form.reset();
             document.getElementById('modal-avisos').classList.add('hidden');
             this.fetchAvisos();
         } catch (error) {
             console.error(error);
-            alert('Erro ao criar aviso: ' + (error.message || JSON.stringify(error)));
+            alert('Erro ao salvar aviso: ' + (error.message || JSON.stringify(error)));
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerText = "Salvar";
@@ -412,42 +423,30 @@ const app = {
         if (form) {
             form.reset();
             document.getElementById('modal-avisos-title').innerText = 'Novo Aviso';
-            document.getElementById('aviso-id').value = '';
+            document.getElementById('aviso-id').value = ''; 
             document.getElementById('modal-avisos').classList.remove('hidden');
         }
     },
 
-    openAvisoEdit(id) {
-        const aviso = this.data.avisos.find(a => a.id === id);
-        if(!aviso) return;
+    openEditAviso(id) {
+        const aviso = this.data.avisos.find(a => a.id == id);
+        
+        if(!aviso) {
+            console.error('Aviso não encontrado para o ID:', id);
+            return;
+        }
 
         const form = document.getElementById('form-aviso');
         if (!form) return;
 
+        // Preenche o formulário
         document.getElementById('aviso-id').value = aviso.id || '';
         document.getElementById('aviso-title').value = aviso.title || '';
         document.getElementById('aviso-content').value = aviso.content || '';
         document.getElementById('aviso-pinned').checked = !!aviso.pinned;
+
         document.getElementById('modal-avisos-title').innerText = 'Editar Aviso';
         document.getElementById('modal-avisos').classList.remove('hidden');
-    },
-
-    async confirmAvisoEdit() {
-        const id = document.getElementById('aviso-id').value;
-        if (!id) { alert('Aviso inválido.'); return; }
-        const updates = {
-            title: document.getElementById('aviso-title').value.trim(),
-            content: document.getElementById('aviso-content').value.trim(),
-            pinned: document.getElementById('aviso-pinned').checked || false
-        };
-
-        try {
-            await Avisos.updateAviso(id, updates);
-            document.getElementById('modal-avisos').classList.add('hidden');
-            this.fetchAvisos();
-        } catch (error) {
-            alert('Erro ao atualizar aviso: ' + (error.message || JSON.stringify(error)));
-        }
     },
 
     async deleteAviso(id) {

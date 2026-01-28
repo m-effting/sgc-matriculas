@@ -148,7 +148,11 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
 
     container.innerHTML = avisos.map(a => {
         const pinnedLabel = a.pinned ? '<span class="text-xs font-bold text-white bg-blue-600 px-2 py-0.5 rounded">FIXO</span>' : '';
+        
         const canEdit = (a.created_by === currentUserId) || isAdmin;
+
+        const dateStr = new Date(a.created_at).toLocaleDateString('pt-BR');
+        const userDisplay = a.username || 'Usuário Desconhecido';
 
         return `
         <div class="bg-white rounded-xl shadow-sm border p-4">
@@ -158,11 +162,13 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
                 <h3 class="font-bold">${a.title}</h3>
                 ${pinnedLabel}
               </div>
-              <div class="text-xs text-slate-500">${a.created_by_email || '—'} • ${new Date(a.created_at).toLocaleString('pt-BR')}</div>
+              <div class="text-xs text-slate-500 mt-1">
+                 <span class="font-semibold text-slate-600">${userDisplay}</span> • ${dateStr}
+              </div>
             </div>
             <div class="flex gap-2">
-              ${canEdit ? `<button onclick="app.openEditAviso('${a.id}')" class="px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200">Editar</button>` : ''}
-              ${isAdmin ? `<button onclick="app.deleteAviso('${a.id}')" class="px-3 py-1 text-sm rounded text-red-600 hover:bg-red-50">Excluir</button>` : ''}
+              ${canEdit ? `<button onclick="app.openEditAviso('${a.id}')" class="px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200 transition-colors">Editar</button>` : ''}
+              ${canEdit ? `<button onclick="app.deleteAviso('${a.id}')" class="px-3 py-1 text-sm rounded text-red-600 hover:bg-red-50 transition-colors">Excluir</button>` : ''}
             </div>
           </div>
           <div class="mt-3 text-sm text-slate-700 whitespace-pre-wrap">${a.content || ''}</div>

@@ -2,9 +2,11 @@ import { db } from './supabase.js';
 
 /**
  * Retorna todos os avisos, ordenando por pinned e data de criação
+ * Agora busca também o username na tabela profiles
  */
 export async function getAllAvisos() {
-    const { data, error } = await db
+    // 1. Busca os avisos
+    const { data: avisos, error } = await db
         .from('avisos')
         .select('*')
         .order('pinned', { ascending: false })
@@ -14,7 +16,33 @@ export async function getAllAvisos() {
         console.error('Erro ao buscar avisos:', error);
         throw error;
     }
-    return data;
+
+    if (!avisos || avisos.length === 0) return [];
+
+    // 2. Coleta os IDs únicos dos criadores dos avisos
+    const userIds = [...new Set(avisos.map(a => a.created_by).filter(Boolean))];
+
+    // 3. Busca os profiles correspondentes para pegar o username
+    let profileMap = {};
+    if (userIds.length > 0) {
+        const { data: profiles, error: profileError } = await db
+            .from('profiles')
+            .select('id, username')
+            .in('id', userIds);
+        
+        if (!profileError && profiles) {
+            // Cria um mapa: { 'uuid': 'username' }
+            profiles.forEach(p => {
+                profileMap[p.id] = p.username;
+            });
+        }
+    }
+
+    // 4. Retorna os avisos com o campo username acoplado
+    return avisos.map(a => ({
+        ...a,
+        username: profileMap[a.created_by] || 'Usuário Desconhecido' // Fallback caso não ache profile
+    }));
 }
 
 /**
@@ -50,9 +78,15 @@ export async function createAviso(avisoData) {
  * @param {Object} updates - campos a atualizar
  */
 export async function updateAviso(id, updates) {
+    // Adiciona timestamp de atualização
+    const dataToUpdate = {
+        ...updates,
+        updated_at: new Date().toISOString()
+    };
+
     const { data, error } = await db
         .from('avisos')
-        .update(updates)
+        .update(dataToUpdate)
         .eq('id', id)
         .select()
         .single();
