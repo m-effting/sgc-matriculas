@@ -160,11 +160,11 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
         const cardPinBg = a.pinned ? 'bg-white shadow-sm border border-blue-100' : '';
 
         return `
-        <div class="group relative flex flex-col h-80 ${cardBorder} rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-all duration-200">
+        <div class="group relative flex flex-col h-auto break-inside-avoid mb-6 ${cardBorder} rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-all duration-200">
           
           <!-- Cabeçalho do Card -->
           <div class="flex justify-between items-start mb-3">
-            <h3 class="font-bold text-lg leading-tight text-slate-800 line-clamp-2" title="${a.title}">${a.title}</h3>
+            <h3 class="font-bold text-lg leading-tight text-slate-800 break-words" title="${a.title}">${a.title}</h3>
             ${a.pinned ? `<div class="shrink-0 p-1.5 rounded-full ${cardPinBg}">${pinnedIcon}</div>` : ''}
           </div>
 
@@ -181,9 +181,9 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
              </div>
           </div>
 
-          <!-- Conteúdo (Rolagem interna) -->
-          <div class="flex-1 overflow-y-auto card-scroll pr-1">
-            <div class="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">${a.content || ''}</div>
+          <!-- Conteúdo (Fluxo automático) -->
+          <div class="flex-1 w-full">
+            <div class="text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed">${a.content || ''}</div>
           </div>
 
           <!-- Rodapé com botões (Aparece/destaca no hover) -->

@@ -128,7 +128,6 @@ const app = {
 
         // render por view
         if (this.data.currentView === 'dashboard') {
-            // Atualizado para passar usuário e admin para controle de permissões
             UI.renderDashboard(this.data.tickets, this._currentUserId, this._isAdmin);
         } else if (this.data.currentView === 'archive') {
             const searchVal = document.getElementById('search-input')?.value || '';
@@ -139,7 +138,7 @@ const app = {
     },
 
     /**
-     * Tickets (Agora busca usernames também)
+     * Tickets 
      */
     async fetchTickets() {
         try {
@@ -243,7 +242,6 @@ const app = {
 
         const valName = data ? data.name : '';
 
-        // Botão de fechar em linha separada
         const studentHtml = `
             <div class="p-3 border border-slate-200 rounded-lg bg-slate-50 relative edit-student-item group hover:border-slate-300 transition-colors">
                 <div class="flex justify-between items-center mb-3">
@@ -361,7 +359,7 @@ const app = {
 
         if (resolutionContainer) {
             resolutionContainer.innerHTML = resolutionHtml;
-            // Se houver conteúdo, mostra e adiciona espaçamento superior. Se não, esconde.
+
             if (resolutionHtml) {
                 resolutionContainer.classList.remove('hidden');
                 resolutionContainer.classList.add('mt-4', 'pt-4', 'border-t', 'border-slate-100');
