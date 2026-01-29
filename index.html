@@ -156,7 +156,6 @@
                     <h2 class="text-2xl font-bold">Quadro de Avisos</h2>
                     <button onclick="app.openCreateAviso()" class="btn-primary">Novo Aviso</button>
                 </div>
-                <!-- MUDANÇA AQUI: Alterado de space-y-4 para grid system -->
                 <div id="avisos-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     <!-- Lista de cards inserida por JS -->
                 </div>
@@ -169,33 +168,52 @@
     <!-- Modal Detalhes -->
     <div id="modal-details" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
         <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div class="p-6 border-b flex justify-between">
+            <div class="p-6 border-b flex justify-between items-center">
                 <div>
-                    <h3 id="det-protocol" class="text-xl font-bold">---</h3>
-                    <span id="det-status" class="text-xs px-2 py-1 rounded bg-slate-100 font-bold uppercase">---</span>
+                    <h3 id="det-protocol" class="text-xl font-bold text-slate-800">---</h3>
+                    <span id="det-status" class="text-xs px-2 py-1 rounded bg-slate-100 font-bold uppercase mt-1 inline-block">---</span>
                 </div>
-                <button onclick="document.getElementById('modal-details').classList.add('hidden')" class="text-slate-400 hover:text-red-500">
-                    <span class="material-symbols-outlined">close</span>
+                <button onclick="document.getElementById('modal-details').classList.add('hidden')" class="text-slate-400 hover:text-red-500 transition-colors">
+                    <span class="material-symbols-outlined text-2xl">close</span>
                 </button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-4">
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div><p class="label">Solicitante</p><p id="det-requester" class="font-medium">-</p></div>
-                    <div><p class="label">CPF</p><p id="det-cpf" class="font-medium">-</p></div>
-                    <div><p class="label">Telefone</p><p id="det-phone" class="font-medium">-</p></div>
-                    <div><p class="label">Canal</p><p id="det-channel" class="font-medium">-</p></div>
-                    <div><p class="label">Atendente</p><p id="det-attendant" class="font-medium">-</p></div>
-                    <div><p class="label">Prazo</p><p id="det-deadline" class="font-medium">-</p></div>
+            
+            <div class="p-6 overflow-y-auto space-y-5">
+                <!-- Grid de Dados Principais -->
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <div><p class="label">Solicitante</p><p id="det-requester" class="font-medium text-slate-700">-</p></div>
+                    <div><p class="label">CPF</p><p id="det-cpf" class="font-medium text-slate-700">-</p></div>
+                    <div><p class="label">Telefone</p><p id="det-phone" class="font-medium text-slate-700">-</p></div>
+                    <div><p class="label">Canal</p><p id="det-channel" class="font-medium text-slate-700">-</p></div>
+                    <div><p class="label">Atendente</p><p id="det-attendant" class="font-medium text-slate-700">-</p></div>
+                    <div><p class="label">Prazo</p><p id="det-deadline" class="font-medium text-slate-700">-</p></div>
                 </div>
+
+                <!-- Seção Alunos -->
                 <div class="hidden">
                     <p class="label mb-2">Alunos Relacionados</p>
                     <div id="det-students"></div>
                 </div>
-                <div><p class="label">Descrição</p><p id="det-description" class="bg-slate-50 p-3 rounded border text-sm mt-1 whitespace-pre-wrap">-</p></div>
+
+                <!-- Seção Descrição e Histórico -->
+                <div>
+                    <p class="label mb-2">Detalhes da Situação</p>
+                    <div class="border border-slate-200 rounded-lg p-4 bg-white shadow-sm">
+                        <!-- Metadados Inseridos via JS -->
+                        <div id="det-meta-info"></div>
+                        
+                        <!-- Conteúdo da Descrição -->
+                        <div id="det-desc-content" class="text-slate-600 text-sm whitespace-pre-wrap leading-relaxed"></div>
+
+                        <!-- Container para Resolução  -->
+                        <div id="det-resolution-info" class="hidden"></div>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-2" id="det-actions">
-                <button onclick="app.deleteTicket()" class="text-red-600 hover:bg-red-50 px-4 py-2 rounded text-sm font-bold">Excluir</button>
-                <button onclick="document.getElementById('modal-details').classList.add('hidden')" class="bg-slate-800 text-white px-4 py-2 rounded text-sm">Fechar</button>
+
+            <!-- Rodapé de Ações -->
+            <div class="p-4 border-t bg-slate-50 rounded-b-xl flex justify-between gap-2" id="det-actions">
+                <!-- Botões inseridos via JS -->
             </div>
         </div>
     </div>
@@ -213,6 +231,81 @@
                     <button onclick="app.confirmResolution()" class="btn-primary bg-green-600 hover:bg-green-700">Concluir</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Ticket -->
+    <div id="modal-edit-ticket" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl p-6 w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-6">Editar Atendimento</h3>
+            <form id="form-edit-ticket">
+                <input type="hidden" id="edit-ticket-id">
+                
+                <div class="grid grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label class="label block">Atendente</label>
+                        <input id="edit-attendant" class="input-field" required>
+                    </div>
+                    <div>
+                        <label class="label block">Canal</label>
+                        <select id="edit-channel" class="input-field" required>
+                            <option value="Whatsapp Central">Whatsapp Central</option>
+                            <option value="Chatbot">Chatbot</option>
+                            <option value="Telefone (Ligação)">Telefone (Ligação)</option>
+                            <option value="Pessoalmente">Pessoalmente</option>
+                            <option value="Ouvidoria">Ouvidoria</option>
+                            <option value="Email">Email</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label class="label block">Solicitante</label>
+                        <input id="edit-requester" class="input-field" required>
+                    </div>
+                    <div>
+                        <label class="label block">CPF</label>
+                        <input id="edit-cpf" class="input-field" required oninput="app.maskCPF(this)">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label class="label block">Telefone</label>
+                        <input id="edit-phone" class="input-field" required>
+                    </div>
+                    <div>
+                        <label class="label block">Prazo (dias úteis)</label>
+                        <select id="edit-deadline" class="input-field" required>
+                            <option value="3">3 Dias</option>
+                            <option value="5">5 Dias</option>
+                            <option value="8">8 Dias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO ALUNOS -->
+                <div class="border-t border-b py-4 mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-slate-600 uppercase">Alunos Relacionados</h3>
+                        <button type="button" onclick="app.addEditStudent()" class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                            <span class="material-symbols-outlined text-base">add</span> Adicionar
+                        </button>
+                    </div>
+                    <div id="edit-students-container" class="space-y-3"></div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="label block">Descrição</label>
+                    <textarea id="edit-description" rows="4" class="input-field" required></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="document.getElementById('modal-edit-ticket').classList.add('hidden')" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
         </div>
     </div>
 

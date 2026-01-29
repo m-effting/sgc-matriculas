@@ -1,6 +1,6 @@
 import { getDaysLeft } from './utils.js';
 
-export function renderDashboard(tickets) {
+export function renderDashboard(tickets, currentUserId, isAdmin) {
     const grid = document.getElementById('dashboard-grid');
     const empty = document.getElementById('dashboard-empty');
 
@@ -35,7 +35,7 @@ export function renderDashboard(tickets) {
                  <span class="material-symbols-outlined text-[14px]">school</span> ${studentsCount} aluno(s)
                </div>` 
             : '';
-
+        
         return `
         <div class="bg-white rounded-xl shadow-sm border p-4 flex flex-col gap-3">
             <div class="flex items-start justify-between gap-4">
@@ -69,10 +69,10 @@ export function renderDashboard(tickets) {
             </div>
 
             <div class="flex justify-end gap-2 mt-2">
-                <button onclick="app.openDetails('${t.id}')" class="px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200">
+                <button onclick="app.openDetails('${t.id}')" class="px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200" title="Ver Detalhes">
                     <span class="material-symbols-outlined align-middle">visibility</span>
                 </button>
-                <button onclick="app.openResolve('${t.id}')" class="px-3 py-1 text-sm rounded bg-green-50 hover:bg-green-100">
+                <button onclick="app.openResolve('${t.id}')" class="px-3 py-1 text-sm rounded bg-green-50 hover:bg-green-100 text-green-700" title="Concluir">
                     <span class="material-symbols-outlined align-middle">check_circle</span>
                 </button>
             </div>
@@ -156,7 +156,6 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
         const dateStr = new Date(a.created_at).toLocaleDateString('pt-BR');
         const userDisplay = a.username || 'Usuário Desconhecido';
         
-        // Estilização condicional para cards fixados
         const cardBorder = a.pinned ? 'border-l-4 border-l-blue-600 bg-blue-50/30' : 'bg-white';
         const cardPinBg = a.pinned ? 'bg-white shadow-sm border border-blue-100' : '';
 
@@ -197,7 +196,7 @@ export function renderAvisos(avisos, currentUserId, isAdmin = false) {
                 <span class="material-symbols-outlined text-lg align-middle">delete</span>
             </button>
           </div>
-          ` : `<div class="mt-4 h-2"></div>`} <!-- Espaçador caso não tenha botões -->
+          ` : `<div class="mt-4 h-2"></div>`}
         </div>
         `;
     }).join('');

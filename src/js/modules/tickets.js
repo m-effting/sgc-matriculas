@@ -27,7 +27,7 @@ export async function createTicket(formData) {
     const protocol = `SGC-${datePart}-${randomPart}`;
 
     // --- Lógica para processar Alunos ---
-    // O FormData retorna arrays quando há múltiplos inputs com o mesmo nome (ex: student_name[])
+    // O FormData retorna arrays quando há múltiplos inputs com o mesmo nome 
     
     const studentNames = formData.getAll('student_name[]');
     const studentGrades = formData.getAll('student_grade[]');
@@ -47,6 +47,7 @@ export async function createTicket(formData) {
         protocol: protocol,
         attendant: formData.get('attendant'),
         created_by_email: userEmail,
+        created_by: user?.id || null, 
         channel: formData.get('channel'),
         requester: formData.get('requester'),
         cpf: formData.get('cpf'),
@@ -62,4 +63,28 @@ export async function createTicket(formData) {
     };
 
     return await db.from('atendimentos').insert([newTicket]);
+}
+
+/**
+ * Atualiza um atendimento existente.
+ * Se deadline_days for alterado, recalcula a data de entrega.
+ */
+export async function updateTicket(id, updates) {
+    // Se houve alteração no prazo em dias, recalcular a data limite
+    if (updates.deadline_days) {
+        updates.deadline_date = calculateDeadline(parseInt(updates.deadline_days)).toISOString();
+    }
+
+    const { data, error } = await db
+        .from('atendimentos')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Erro ao atualizar ticket:', error);
+        throw error;
+    }
+    return data;
 }
