@@ -15,6 +15,11 @@
     <style>
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Scrollbar fina para o conteúdo do card de aviso */
+        .card-scroll::-webkit-scrollbar { width: 4px; }
+        .card-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+        .card-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden font-inter">
@@ -151,8 +156,9 @@
                     <h2 class="text-2xl font-bold">Quadro de Avisos</h2>
                     <button onclick="app.openCreateAviso()" class="btn-primary">Novo Aviso</button>
                 </div>
-                <div id="avisos-list" class="space-y-4">
-                    <!-- Lista de avisos inserida por JS -->
+                <!-- MUDANÇA AQUI: Alterado de space-y-4 para grid system -->
+                <div id="avisos-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Lista de cards inserida por JS -->
                 </div>
             </div>
 
